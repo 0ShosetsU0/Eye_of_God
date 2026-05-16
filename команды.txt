@@ -1,0 +1,34 @@
+docker start minio
+
+# Запустите PostgreSQL контейнер
+docker run -d --name postgres -p 5432:5432 \
+  -e "POSTGRES_USER=postgres" \
+  -e "POSTGRES_PASSWORD=postgres" \
+  -e "POSTGRES_DB=defectvision" \
+  postgres:18
+
+conda deactivate
+conda activate defectvision
+cd C:\Users\romka\Desktop\-\GPO\Eye_of_God\backend\backend
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+conda deactivate
+conda activate defectvision
+cd C:\Users\romka\Desktop\-\GPO\Eye_of_God\recognition
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
+
+conda activate defectvision
+cd C:\Users\romka\Desktop\-\GPO\Eye_of_God\frontend
+npm run dev
+
+# Регистрация
+curl -X POST http://localhost:8000/api/v1/auth/register -H "Content-Type: application/json" -d "{\"email\":\"test@example.com\",\"username\":\"testuser\",\"password\":\"123456\"}"
+
+# Логин
+curl -X POST http://localhost:8000/api/v1/auth/login -H "Content-Type: application/json" -d "{\"username\":\"testuser\",\"password\":\"123456\"}"
+
+
+
+docker run -d --name defectvision-db -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=defectvision -e POSTGRES_HOST_AUTH_METHOD=trust postgres:15-alpine
+
+docker run -d --name minio -p 9000:9000 -p 9001:9001 -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin minio/minio server /data --console-address ":9001"
