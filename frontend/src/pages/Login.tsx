@@ -17,20 +17,28 @@ const Login: React.FC = () => {
     setIsLoading(true)
 
     try {
-      const response = await api.post('/api/v1/auth/login', {
-        email: email,
-        password: password
-      })
+      // Используем правильный формат для OAuth2 (x-www-form-urlencoded)
+      const formData = new URLSearchParams()
+      formData.append('username', email)
+      formData.append('password', password)
+
+      const response = await api.post('/api/v1/auth/login',
+        new URLSearchParams({ username: email, password: password }),
+        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+      )
 
       const { access_token, refresh_token } = response.data
 
-      // Сохраняем токены
+// Сохраняем токены
       localStorage.setItem('access_token', access_token)
       localStorage.setItem('refresh_token', refresh_token)
 
+// Проверка сохранения
+      console.log('Token saved:', localStorage.getItem('access_token'))
+
       // Создаем объект пользователя
       const user = {
-        id: access_token.split('_')[1] || '1',
+        id: '1',
         email: email,
         username: email.split('@')[0]
       }
@@ -40,28 +48,8 @@ const Login: React.FC = () => {
       navigate('/')
     } catch (error: any) {
       console.error('Login error:', error)
-
-      // Обрабатываем ошибку в правильном формате
-      let errorMessage = 'Ошибка входа'
-
-      if (error.response?.data) {
-        const data = error.response.data
-        if (typeof data === 'string') {
-          errorMessage = data
-        } else if (data.detail) {
-          if (Array.isArray(data.detail)) {
-            errorMessage = data.detail.map((d: any) => d.msg || d.message).join(', ')
-          } else if (typeof data.detail === 'string') {
-            errorMessage = data.detail
-          } else {
-            errorMessage = JSON.stringify(data.detail)
-          }
-        } else if (data.message) {
-          errorMessage = data.message
-        }
-      }
-
-      toast.error(errorMessage)
+      const errorMessage = error.response?.data?.detail || 'Ошибка входа'
+      toast.error(typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage))
     } finally {
       setIsLoading(false)
     }
@@ -123,14 +111,6 @@ const Login: React.FC = () => {
             <Link to="/register" className="text-blue-600 hover:text-blue-700 font-medium">
               Зарегистрироваться
             </Link>
-          </p>
-        </div>
-
-        <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-          <p className="text-xs text-gray-500 text-center">
-            Тестовый доступ:<br />
-            Email: test@test.com<br />
-            Пароль: 123456
           </p>
         </div>
       </div>

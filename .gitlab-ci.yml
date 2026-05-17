@@ -1,0 +1,102 @@
+# .gitlab-ci.yml
+stages:
+  - test
+  - build
+  - deploy
+
+variables:
+  DOCKER_REGISTRY: registry.gitlab.com
+  DOCKER_IMAGE_BACKEND: $CI_REGISTRY_IMAGE/backend
+  DOCKER_IMAGE_FRONTEND: $CI_REGISTRY_IMAGE/frontend
+  DOCKER_IMAGE_ML: $CI_REGISTRY_IMAGE/ml
+
+# Тестирование
+test-backend:
+  stage: test
+  image: python:3.11
+  script:
+    - cd backend
+    - pip install -r requirements.txt
+    - pip install pytest pytest-cov
+    - pytest --cov=app tests/
+  only:
+    - main
+    - develop
+
+test-frontend:
+  stage: test
+  image: node:18
+  script:
+    - cd frontend
+    - npm ci
+    - npm run test
+  only:
+    - main
+    - develop
+
+test-ml:
+  stage: test
+  image: python:3.11
+  script:
+    - cd recognition
+    - pip install -r requirements.txt
+    - pip install pytest
+    - pytest tests/
+  only:
+    - main
+    - develop
+
+# Сборка Docker образов
+build-backend:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - docker build -t $DOCKER_IMAGE_BACKEND:$CI_COMMIT_SHA ./backend
+    - docker tag $DOCKER_IMAGE_BACKEND:$CI_COMMIT_SHA $DOCKER_IMAGE_BACKEND:latest
+    - docker push $DOCKER_IMAGE_BACKEND:$CI_COMMIT_SHA
+    - docker push $DOCKER_IMAGE_BACKEND:latest
+  only:
+    - main
+
+build-frontend:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - docker build -t $DOCKER_IMAGE_FRONTEND:$CI_COMMIT_SHA ./frontend
+    - docker push $DOCKER_IMAGE_FRONTEND:$CI_COMMIT_SHA
+  only:
+    - main
+
+build-ml:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - docker build -t $DOCKER_IMAGE_ML:$CI_COMMIT_SHA ./recognition
+    - docker push $DOCKER_IMAGE_ML:$CI_COMMIT_SHA
+  only:
+    - main
+
+# Деплой
+deploy:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client
+    - eval $(ssh-agent -s)
+    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+  script:
+    - ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$DEPLOY_HOST "
+        cd /opt/defectvision &&
+        docker-compose pull &&
+        docker-compose up -d --force-recreate
+      "
+  only:
+    - main

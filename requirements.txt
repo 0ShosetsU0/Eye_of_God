@@ -27,9 +27,10 @@ aiohttp==3.9.1
 # httpx==0.27.0
 # redis==5.0.1
 
-# Optional: For real ML models (раскомментируйте при необходимости)
-# ultralytics==8.0.207
-# torch==2.1.0
-# torchvision==0.16.0
-# anomalib==1.0.0
-# segment-anything
+# ML models
+ultralytics==8.0.207
+torch==2.1.0
+torchvision==0.16.0
+anomalib==1.0.0
+segment-anything
+opencv-python

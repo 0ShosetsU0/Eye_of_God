@@ -11,7 +11,7 @@ export default function Dashboard() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const queryClient = useQueryClient()
 
-  const { data: projects, isLoading } = useQuery({
+  const { data: projects, isLoading, error } = useQuery({
     queryKey: ['projects'],
     queryFn: () => projectsApi.list().then(res => res.data),
   })
@@ -23,10 +23,21 @@ export default function Dashboard() {
       setShowCreateModal(false)
       toast.success('Проект создан')
     },
-    onError: () => toast.error('Ошибка создания проекта'),
+    onError: (error: any) => {
+      const message = error.response?.data?.detail || 'Ошибка создания проекта'
+      toast.error(message)
+    },
   })
 
   if (isLoading) return <LoadingSpinner />
+
+  if (error) {
+    return (
+      <div className="p-6 text-center text-red-500">
+        Ошибка загрузки проектов: {(error as any).message}
+      </div>
+    )
+  }
 
   return (
     <div className="p-6">
@@ -40,15 +51,8 @@ export default function Dashboard() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {projects?.map((project) => (
-          <ProjectCard key={project.id} project={project} />
-        ))}
-      </div>
-
-      {projects?.length === 0 && (
+      {projects?.length === 0 ? (
         <div className="text-center py-12">
-          <div className="text-5xl mb-4">📁</div>
           <p className="text-gray-500">У вас пока нет проектов</p>
           <button
             onClick={() => setShowCreateModal(true)}
@@ -56,6 +60,12 @@ export default function Dashboard() {
           >
             Создать первый проект
           </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {projects?.map((project) => (
+            <ProjectCard key={project.id} project={project} />
+          ))}
         </div>
       )}
 

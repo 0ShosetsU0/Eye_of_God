@@ -1,0 +1,22 @@
+# filebeat/filebeat.yml
+filebeat.inputs:
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/backend/*.log
+    fields:
+      service: backend
+
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/ml-service/*.log
+    fields:
+      service: ml-service
+
+output.elasticsearch:
+  hosts: ["elasticsearch:9200"]
+  index: "defectvision-logs-%{+yyyy.MM.dd}"
+
+setup.kibana:
+  host: "kibana:5601"

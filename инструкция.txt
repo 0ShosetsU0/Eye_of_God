@@ -1,0 +1,261 @@
+# Полная последовательность команд для запуска проекта DefectVision
+
+## Предварительные требования
+
+Перед запуском убедитесь, что на вашем компьютере установлены следующие программы:
+
+- **Docker Desktop** (для Windows) — скачать с https://www.docker.com/products/docker-desktop/
+- **Python 3.11** или выше — скачать с https://www.python.org/downloads/
+- **Node.js 18** или выше — скачать с https://nodejs.org/
+- **Git** — скачать с https://git-scm.com/
+- **Miniconda** (опционально, для управления Python окружением)
+
+После установки Docker Desktop запустите его и дождитесь, пока индикатор в трее станет зеленым.
+
+---
+
+## Часть 1: Клонирование и подготовка проекта
+
+```bash
+# Перейдите в рабочую директорию
+cd C:\Users\"User_name"\...
+
+# Клонируйте репозиторий (если ещё не сделали)
+git clone https://github.com/0ShosetsU0/Eye_of_God.git
+
+# Перейдите в папку проекта
+cd Eye_of_God
+```
+
+---
+
+## Часть 2: Запуск инфраструктуры (PostgreSQL и MinIO)
+
+
+### Запустите инфраструктуру:
+
+```bash
+docker-compose -f docker-compose.infrastructure.yml up -d
+```
+
+### Проверьте, что контейнеры запущены:
+
+```bash
+docker ps
+```
+
+Ожидаемый вывод: два контейнера `defectvision-postgres` и `defectvision-minio` в статусе `Up`
+
+### Создайте бакет в MinIO:
+
+Откройте браузер и перейдите по адресу http://localhost:9001
+
+- **Логин:** `minioadmin`
+- **Пароль:** `minioadmin`
+
+Нажмите **"Create Bucket"**, введите имя `defectvision`, нажмите **"Create Bucket"**
+
+### Проверьте PostgreSQL:
+
+```bash
+docker exec defectvision-postgres psql -U postgres -c "SELECT 1"
+```
+
+Ожидаемый вывод: `?column?` и `1`
+
+---
+
+## Часть 3: Настройка и запуск бэкенда
+
+### Создайте виртуальное окружение и установите зависимости:
+
+```bash
+cd C:\Users\"User_name"\Desktop\Eye_of_God\backend\backend
+
+# Создание виртуального окружения
+python -m venv venv
+
+# Активация виртуального окружения (Windows)
+venv\Scripts\activate
+
+# Обновление pip
+python -m pip install --upgrade pip
+
+# Установка зависимостей
+pip install -r C:\Users\romka\Desktop\-\GPO\Eye_of_God\requirements.txt
+```
+
+### Создайте таблицы в базе данных:
+
+```bash
+# Создание таблиц через Python
+python -c "
+import asyncio
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import text
+from app.core.config import settings
+from app.models.base import Base
+from app.models.user import User
+from app.models.project import Project
+from app.models.dataset import Dataset, Image
+
+async def init():
+    engine = create_async_engine(settings.DATABASE_URL, echo=True)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    print('Tables created successfully!')
+    await engine.dispose()
+
+asyncio.run(init())
+"
+```
+
+### Запустите бэкенд:
+
+```bash
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+**Оставьте этот терминал открытым!**
+
+---
+
+## Часть 4: Настройка и запуск ML-сервиса
+
+### Откройте новый терминал (Терминал 2)
+
+```bash
+cd C:\Users\"User_name"\Desktop\Eye_of_God\recognition
+
+# Активация виртуального окружения (если используете)
+cd C:\Users\romka\Desktop\Eye_of_God\backend\backend
+venv\Scripts\activate
+cd C:\Users\romka\Desktop\Eye_of_God\recognition
+
+# Установка зависимостей
+pip install fastapi uvicorn numpy opencv-python pillow aiohttp
+```
+
+### Запустите ML-сервис:
+
+```bash
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
+```
+
+**Оставьте этот терминал открытым!**
+
+---
+
+## Часть 5: Настройка и запуск фронтенда
+
+### Откройте новый терминал (Терминал 3)
+
+```bash
+cd C:\Users\romka\Desktop\Eye_of_God\frontend
+
+# Установка зависимостей Node.js
+npm install
+
+# Установка дополнительных библиотек
+npm install lucide-react react-hot-toast @tanstack/react-query
+
+
+### Запустите фронтенд:
+
+```bash
+npm run dev
+```
+
+**Оставьте этот терминал открытым!**
+
+---
+
+## Часть 6: Проверка работы всех сервисов
+
+
+### Откройте браузер и перейдите по адресам:
+
+| Сервис | URL | Описание |
+|--------|-----|----------|
+| Фронтенд | http://localhost:5173 | Веб-интерфейс |
+| API документация | http://localhost:8000/docs | Swagger UI |
+| ML-сервис | http://localhost:8001/health | Проверка статуса |
+| MinIO консоль | http://localhost:9001 | Управление файлами (логин: minioadmin/minioadmin) |
+
+---
+
+## Часть 7: Остановка всех сервисов
+
+### Остановка фронтенда и ML-сервиса:
+
+В терминалах 2 и 3 нажмите `Ctrl+C`
+
+### Остановка бэкенда:
+
+В терминале 1 нажмите `Ctrl+C`
+
+### Остановка инфраструктуры (PostgreSQL и MinIO):
+
+```bash
+cd C:\Users\romka\Desktop\Eye_of_God
+docker-compose -f docker-compose.infrastructure.yml down
+```
+
+### Для полной очистки (удаление томов с данными):
+
+```bash
+docker-compose -f docker-compose.infrastructure.yml down -v
+```
+
+---
+
+
+## Устранение возможных проблем
+
+### Ошибка "port already in use"
+
+```bash
+# Найти процесс, занимающий порт
+netstat -ano | findstr :8000
+
+# Убить процесс (замените PID на реальный)
+taskkill /PID 12345 /F
+```
+
+### Ошибка подключения к PostgreSQL
+
+```bash
+# Перезапустить контейнер
+docker restart defectvision-postgres
+
+# Проверить логи
+docker logs defectvision-postgres
+```
+
+### Ошибка CORS
+
+В файле `backend/backend/app/main.py` убедитесь, что CORS настроен правильно:
+
+```python
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
+
+---
+
+## Итоговая структура запущенных сервисов
+
+| Сервис | Порт | Статус |
+|--------|------|--------|
+| PostgreSQL | 5432 | ✅ |
+| MinIO | 9000, 9001 | ✅ |
+| Бэкенд API | 8000 | ✅ |
+| ML-сервис | 8001 | ✅ |
+| Фронтенд | 5173 | ✅ |
+
+После выполнения всех команд проект будет полностью запущен и готов к использованию!
